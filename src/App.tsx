@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { nextSerialNumber, reserveSerialNumber, seedSerialCounters } from "./serialNumber";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { FileText, ListChecks, Building2, TrendingUp } from "lucide-react";
 import { Toaster } from "sonner";
@@ -25,8 +26,8 @@ interface JobOrder {
 const mockJobs: JobOrder[] = [
   {
     id: 1,
-    jobNumber: "ENG-0001-04-2026",
-    department: "Engineering",
+    jobNumber: "OBM-02-04-26",
+    department: "OBM",
     status: "In Progress",
     projectName: "Phoenix Upgrade",
     moNumber: "MO-2026-150",
@@ -37,8 +38,8 @@ const mockJobs: JobOrder[] = [
   },
   {
     id: 2,
-    jobNumber: "PRO-0042-04-2026",
-    department: "Production",
+    jobNumber: "ISI-01-04-26",
+    department: "ISI",
     status: "Open",
     moNumber: "MO-2026-151",
     finalProduct: "Motor Assembly B200",
@@ -49,8 +50,8 @@ const mockJobs: JobOrder[] = [
   },
   {
     id: 3,
-    jobNumber: "QUA-0015-03-2026",
-    department: "Quality Assurance",
+    jobNumber: "ISI-01-03-26",
+    department: "ISI",
     status: "Completed",
     projectName: "Q1 Audit Cycle",
     finalProduct: "Inspection Report",
@@ -60,8 +61,8 @@ const mockJobs: JobOrder[] = [
   },
   {
     id: 4,
-    jobNumber: "RES-0008-04-2026",
-    department: "Research & Development",
+    jobNumber: "OBM-01-04-26",
+    department: "OBM",
     status: "In Progress",
     projectName: "NextGen Materials",
     erbCode: "ERB-2026-755",
@@ -71,7 +72,7 @@ const mockJobs: JobOrder[] = [
   },
   {
     id: 5,
-    jobNumber: "MAI-0023-04-2026",
+    jobNumber: "MAI-01-04-26",
     department: "Maintenance",
     status: "Open",
     moNumber: "MO-2026-148",
@@ -85,6 +86,11 @@ const mockJobs: JobOrder[] = [
 export default function App() {
   const [activeTab, setActiveTab] = useState("new");
   const [jobs, setJobs] = useState<JobOrder[]>(mockJobs);
+  // Keep issued sequences even when records are deleted, for this app session.
+  const serialCounters = useRef(seedSerialCounters(mockJobs));
+
+  const previewSerialNumber = (department: string) =>
+    nextSerialNumber(serialCounters.current, department, new Date());
 
   const stats = useMemo(() => {
     const thisMonth = new Date().getMonth();
@@ -103,9 +109,13 @@ export default function App() {
     };
   }, [jobs]);
 
-  const handleJobCreated = (newJob: JobOrder) => {
-    setJobs(prev => [newJob, ...prev]);
+  const handleJobCreated = (newJob: Omit<JobOrder, "jobNumber">) => {
+    const now = new Date();
+    const jobNumber = reserveSerialNumber(serialCounters.current, newJob.department, now);
+    const savedJob = { ...newJob, jobNumber, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+    setJobs(prev => [savedJob, ...prev]);
     setActiveTab("all");
+    return jobNumber;
   };
 
   const handleStatusChange = (id: number, newStatus: string) => {
@@ -192,7 +202,7 @@ export default function App() {
           </div>
 
           <TabsContent value="new">
-            <CreateJobOrderForm onJobCreated={handleJobCreated} />
+            <CreateJobOrderForm onJobCreated={handleJobCreated} previewSerialNumber={previewSerialNumber} />
           </TabsContent>
 
           <TabsContent value="all">

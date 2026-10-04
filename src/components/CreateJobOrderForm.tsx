@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Sparkles, Building2, FileText, Package, Hash, Target } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+import { DEPARTMENTS } from "../serialNumber";
 
 interface JobOrderFormData {
   department: string;
@@ -16,38 +17,26 @@ interface JobOrderFormData {
 }
 
 interface CreateJobOrderFormProps {
-  onJobCreated: (job: any) => void;
+  onJobCreated: (job: JobOrderFormData & {
+    id: number;
+    createdAt: string;
+    updatedAt: string;
+  }) => string;
+  previewSerialNumber: (department: string) => string;
 }
 
-const departments = [
-  "Engineering",
-  "Production",
-  "Quality Assurance",
-  "Research & Development",
-  "Maintenance"
-];
+const departments = DEPARTMENTS;
 
 const statuses = ["Open", "In Progress", "Completed", "On Hold"];
 
-export function CreateJobOrderForm({ onJobCreated }: CreateJobOrderFormProps) {
+export function CreateJobOrderForm({ onJobCreated, previewSerialNumber }: CreateJobOrderFormProps) {
   const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<JobOrderFormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const department = watch("department");
   const finalProduct = watch("finalProduct");
   const erbCode = watch("erbCode");
-
-  const generateJobNumber = () => {
-    if (!department) return "Select department first";
-
-    const now = new Date();
-    const deptCode = department.substring(0, 3).toUpperCase();
-    const sequence = Math.floor(Math.random() * 9999) + 1;
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-
-    return `${deptCode}-${String(sequence).padStart(4, '0')}-${month}-${year}`;
-  };
+  const serialNumberPreview = department ? previewSerialNumber(department) : "";
 
   const onSubmit = async (data: JobOrderFormData) => {
     if (!data.finalProduct && !data.erbCode) {
@@ -59,16 +48,14 @@ export function CreateJobOrderForm({ onJobCreated }: CreateJobOrderFormProps) {
 
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const jobNumber = generateJobNumber();
     const newJob = {
       id: Date.now(),
-      jobNumber,
       ...data,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    onJobCreated(newJob);
+    const jobNumber = onJobCreated(newJob);
 
     confetti({
       particleCount: 100,
@@ -114,16 +101,17 @@ export function CreateJobOrderForm({ onJobCreated }: CreateJobOrderFormProps) {
           <div className="relative z-10">
             <p className="text-sm text-indigo-600 mb-2 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              Preview Job Number
+              Preview Serial Number
             </p>
             <motion.p
-              key={generateJobNumber()}
+              key={serialNumberPreview}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl text-indigo-700 font-mono tracking-tight"
             >
-              {generateJobNumber()}
+              {serialNumberPreview}
             </motion.p>
+            <p className="text-sm text-indigo-600 mt-2">Sequence starts at 01 each month for each department.</p>
           </div>
         </motion.div>
       )}
@@ -136,7 +124,10 @@ export function CreateJobOrderForm({ onJobCreated }: CreateJobOrderFormProps) {
               Department <span className="text-red-500">*</span>
             </label>
             <select
-              {...register("department", { required: "Department is required" })}
+              {...register("department", {
+                required: "Department is required",
+                validate: value => (departments as readonly string[]).includes(value) || "Select a valid department"
+              })}
               className="w-full px-4 py-3 bg-input-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all hover:border-primary/20"
             >
               <option value="">Select department</option>
@@ -182,11 +173,12 @@ export function CreateJobOrderForm({ onJobCreated }: CreateJobOrderFormProps) {
           </div>
 
           <div>
-            <label className="flex items-center gap-2 text-sm mb-2">
+            <label htmlFor="mo-number" className="flex items-center gap-2 text-sm mb-2">
               <Hash className="w-4 h-4" />
               MO Number
             </label>
             <input
+              id="mo-number"
               {...register("moNumber")}
               type="text"
               placeholder="e.g., MO-2026-001"

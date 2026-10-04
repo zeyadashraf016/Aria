@@ -3,6 +3,9 @@ import { motion } from "motion/react";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
 import { JobOrderCard } from "./JobOrderCard";
 import { toast } from "sonner";
+import { DEPARTMENTS } from "../serialNumber";
+
+const departments = ["All", ...DEPARTMENTS];
 
 interface JobOrder {
   id: number;
@@ -28,10 +31,6 @@ export function JobOrderList({ jobs, onStatusChange, onDelete }: JobOrderListPro
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [departmentFilter, setDepartmentFilter] = useState<string>("All");
-
-  const departments = useMemo(() => {
-    return ["All", ...new Set(jobs.map(job => job.department))];
-  }, [jobs]);
 
   const statuses = ["All", "Open", "In Progress", "Completed", "On Hold"];
 
